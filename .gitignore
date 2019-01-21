@@ -1,6 +1,6 @@
 typings
 node_modules
-_build
+#_build
 lib/*.js
 samples/*.js
 samples/*.txt
