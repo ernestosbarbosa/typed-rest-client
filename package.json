@@ -40,6 +40,7 @@
     "typescript": "2.4.2"
   },
   "dependencies": {
+    "qs": "^6.10.1",
     "tunnel": "0.0.4",
     "underscore": "1.8.3"
   }

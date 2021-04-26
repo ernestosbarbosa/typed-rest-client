@@ -3,6 +3,10 @@
 
 import * as url from 'url';
 import * as path from 'path';
+import { IHttpClientResponse } from './Interfaces';
+
+import * as qs from 'qs';
+import zlib = require('zlib');
 
 /**
  * creates an url from a request url and optional base url (http://server:8080)
@@ -35,4 +39,99 @@ export function getUrl(resource: string, baseUrl?: string): string  {
 
         return url.format(resultantUrl);
     }
+}
+
+/**
+ *
+ * @param {string} requestUrl
+ * @param {IRequestQueryParams} queryParams
+ * @return {string} - Request's URL with Query Parameters appended/parsed.
+ */
+ function getUrlWithParsedQueryParams(requestUrl: string, queryParams: any): string {
+    const url: string  = requestUrl.replace(/\?$/g, ''); // Clean any extra end-of-string "?" character
+    const parsedQueryParams: string = qs.stringify(queryParams.params, buildParamsStringifyOptions(queryParams));
+
+    return `${url}${parsedQueryParams}`;
+}
+
+/**
+ * Build options for QueryParams Stringifying.
+ *
+ * @param {IRequestQueryParams} queryParams
+ * @return {object}
+ */
+function buildParamsStringifyOptions(queryParams: any): any  {
+    let options: any = {
+        addQueryPrefix: true,
+        delimiter: (queryParams.options || {}).separator || '&',
+        allowDots: (queryParams.options || {}).shouldAllowDots || false,
+        arrayFormat: (queryParams.options || {}).arrayFormat || 'repeat',
+        encodeValuesOnly: (queryParams.options || {}).shouldOnlyEncodeValues || true
+    }
+
+    return options;
+}
+
+/**
+ * Decompress/Decode gzip encoded JSON
+ * Using Node.js built-in zlib module
+ *
+ * @param {Buffer} buffer
+ * @param {string} charset? - optional; defaults to 'utf-8'
+ * @return {Promise<string>}
+ */
+export async function decompressGzippedContent(buffer: Buffer, charset?: string): Promise<string> {
+    return new Promise<string>(async (resolve, reject) => {
+        zlib.gunzip(buffer, function (error, buffer) {
+            if (error) {
+                reject(error);
+            }
+
+            resolve(buffer.toString(charset || 'utf-8'));
+        });
+    })
+}
+
+/**
+ * Builds a RegExp to test urls against for deciding
+ * wether to bypass proxy from an entry of the
+ * environment variable setting NO_PROXY
+ *
+ * @param {string} bypass
+ * @return {RegExp}
+ */
+export function buildProxyBypassRegexFromEnv(bypass : string) : RegExp {
+    try {
+        // We need to keep this around for back-compat purposes
+        return new RegExp(bypass, 'i')    
+    }
+    catch(err) {
+        if (err instanceof SyntaxError && (bypass || "").startsWith("*")) {            
+            let wildcardEscaped = bypass.replace('*', '(.*)');
+            return new RegExp(wildcardEscaped, 'i');
+        }
+        throw err;
+    }
+}
+
+/**
+ * Obtain Response's Content Charset.
+ * Through inspecting `content-type` response header.
+ * It Returns 'utf-8' if NO charset specified/matched.
+ *
+ * @param {IHttpClientResponse} response
+ * @return {string} - Content Encoding Charset; Default=utf-8
+ */
+export function obtainContentCharset (response: IHttpClientResponse) : string {
+  // Find the charset, if specified.
+  // Search for the `charset=CHARSET` string, not including `;,\r\n`
+  // Example: content-type: 'application/json;charset=utf-8'
+  // |__ matches would be ['charset=utf-8', 'utf-8', index: 18, input: 'application/json; charset=utf-8']
+  // |_____ matches[1] would have the charset :tada: , in our example it's utf-8
+  // However, if the matches Array was empty or no charset found, 'utf-8' would be returned by default.
+  const nodeSupportedEncodings = ['ascii', 'utf8', 'utf16le', 'ucs2', 'base64', 'binary', 'hex'];
+  const contentType: string = response.message.headers['content-type'] || '';
+  const matches: (RegExpMatchArray|null) = contentType.match(/charset=([^;,\r\n]+)/i);
+
+  return (matches && matches[1] && nodeSupportedEncodings.indexOf(matches[1]) != -1) ? matches[1] : 'utf-8';
 }

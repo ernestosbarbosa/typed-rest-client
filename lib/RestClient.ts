@@ -229,6 +229,7 @@ export class RestClient {
                 }
             }
             catch (err) {
+                console.log(err)
                 // Invalid resource (contents not json);  leaving result obj null
             }
 

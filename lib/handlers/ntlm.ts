@@ -71,9 +71,9 @@ export class NtlmCredentialHandler implements ifm.IRequestHandler {
                     reject(err);
                 }
                 // We have to readbody on the response before continuing otherwise there is a hang.
-                res.readBody().then(() => {
+                // res.readBody().then(() => {
                     resolve(res);
-                });
+                // });
             };
 
             this.handleAuthenticationPrivate(httpClient, requestInfo, objs, callbackForResult);
@@ -88,8 +88,8 @@ export class NtlmCredentialHandler implements ifm.IRequestHandler {
             domain: this._ntlmOptions.domain,
             workstation: this._ntlmOptions.workstation
         });
-
-        if (httpClient.isSsl === true) {
+        
+        if (httpClient.requestOptions.isSsl === true) {
             requestInfo.options.agent = new https.Agent({ keepAlive: true });
         } else {
             requestInfo.options.agent = new http.Agent({ keepAlive: true });
